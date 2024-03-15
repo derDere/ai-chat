@@ -1,5 +1,6 @@
 from openai import OpenAI
 import os.path
+import curses
 
 
 #model_engine = "gpt-3.5-turbo-0125"
@@ -64,6 +65,7 @@ class Client(OpenAI):
     self.conversations:dict[str, Conversation] = {}
     self.current_conversation:str = "New Chat"
     self.conversations[self.current_conversation] = Conversation(self.current_conversation)
+    self.conversations["chat2"] = Conversation("chat2")
 
   def get_conversation(self) -> list[str]:
     l = []
@@ -72,6 +74,9 @@ class Client(OpenAI):
     return l
 
   def send(self, conv_key, prompt) -> None:
+    prompt = prompt.strip()
+    if len(prompt) == 0:
+      return
     if conv_key not in self.conversations:
       self.conversations[conv_key] = Conversation(conv_key)
     conv = self.conversations[conv_key]
@@ -82,18 +87,6 @@ class Client(OpenAI):
       messages=messages
     )
     conv.messages.append({"role":"system", "content":completion.choices[0].message.content})
-
-
-class color:
-  HEADER = '\033[95m'
-  OKBLUE = '\033[94m'
-  OKCYAN = '\033[96m'
-  OKGREEN = '\033[92m'
-  WARNING = '\033[93m'
-  FAIL = '\033[91m'
-  ENDC = '\033[0m'
-  BOLD = '\033[1m'
-  UNDERLINE = '\033[4m'
 
 
 class App(npyscreen.NPSAppManaged):
@@ -122,12 +115,24 @@ class InputField(npyscreen.TitleText):
     self.display()
 
 
-class MainForm(npyscreen.Form):
+class SelectList(npyscreen.BoxTitle):
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.callbacks = []
+
+  def when_check_value_changed(self):
+    selectedItem = self.values[self.cursor_line]
+    for callback in self.callbacks:
+      callback(selectedItem)
+
+
+class MainForm(npyscreen.FormBaseNew):
   def create(self):
     app = self.find_parent_app()
     y, x = self.useable_space()
+    # create chat list
     self.chat_list = self.add(
-      npyscreen.BoxTitle,
+      SelectList,
       name="Chats",
       custom_highlighting=True,
       values=app.client.get_conversation(),
@@ -136,6 +141,12 @@ class MainForm(npyscreen.Form):
       max_width=25,
       max_height=y-4,
     )
+    self.chat_list.callbacks.append(self.chat_item_selected)
+    #                           self.chat_list.add_handlers({
+    #                             curses.ascii.NL: lambda k: self.chat_list_enter(k),
+    #                             '^T': lambda k: self.chat_list_enter(k),
+    #                           })
+    # create chat view
     self.chat = self.add(
     	ChatView,
     	name="Conversation",
@@ -145,17 +156,47 @@ class MainForm(npyscreen.Form):
     	max_height=y-4,
     	values=[],
     )
+    #                            self.chat.add_handlers({
+    #                              '^K': lambda k: self.chat_copy(k),
+    #                              curses.ascii.NL: lambda k: self.chat_list_enter(k),
+    #                            })
+    # create input
     self.input = self.add(
       InputField,
       name="Prompt:",
       relx=3,
       rely=y-3,
+      use_two_lines=False,
     )
     self.input.add_handlers({
-      10: lambda e: self.input.invoke(),
-      "^Q": exit
+      curses.ascii.NL: self.input_enter,
     })
-    self.editw = 1
+    self.editw = 2
+    self.add_handlers({
+      #curses.ascii.UP: lambda k: self.chat.values.append("You pressed UP"),
+      #curses.ascii.DOWN: lambda k: self.chat.values.append("You pressed DOWN"),
+      '^T': self.chat_copy,
+      curses.ascii.ESC: self.quit_app,
+      "^Q": self.quit_app,
+    })
+
+  def chat_item_selected(self, item):
+    self.chat.values.append("You selected " + item)
+    self.chat.display()
+    return True
+
+  def quit_app(self, key):
+    self.parentApp.switchForm(None)
+    return True
+
+  def chat_copy(self, key):
+    self.chat.values.append("You pressed ^K")
+    self.chat.display()
+    return True
+
+  def input_enter(self, key):
+    self.input.invoke()
+    return True
 
 
 def main(args):
