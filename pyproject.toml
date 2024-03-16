@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "ai-chat"
+version = "0.1.0"
+description = "A TUI for ChatGPT API"
+authors = ["derDere"]
+readme = "README.md"
+license = "GNU GENERAL PUBLIC LICENSE"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+npyscreen = "^4.10.5"
+openai = "^1.14.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+ai-chat = "app.main:main"
