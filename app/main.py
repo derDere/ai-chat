@@ -5,7 +5,7 @@
 
 import curses
 from xmlrpc.client import Boolean
-import npyscreen # type: ignore
+import npyscreen
 from openai import OpenAI
 
 
@@ -63,7 +63,7 @@ class Client(OpenAI):
   """A client for the OpenAI ChatGPT API
   """
 
-  def __init__(self, *args, **kwargs) -> None: # type: ignore
+  def __init__(self, *args, **kwargs) -> None:
     super().__init__(*args, **kwargs)
     self.model = "gpt-3.5-turbo-0125"
     self.conversations:dict[str, Conversation] = {}
@@ -96,9 +96,9 @@ class Client(OpenAI):
     messages.append({"role":"user", "content":prompt})
     completion = self.chat.completions.create(
       model=self.model,
-      messages=messages # type: ignore
+      messages=messages
     )
-    conv.messages.append({"role":"system", "content":completion.choices[0].message.content}) # type: ignore
+    conv.messages.append({"role":"system", "content":completion.choices[0].message.content})
 
 
 class ChatView(npyscreen.BoxTitle):
@@ -113,7 +113,7 @@ class InputField(npyscreen.TitleText):
   def invoke(self) -> None:
     """Send the message to the chat model
     """
-    app:App = self.find_parent_app() # type: ignore
+    app:App = self.find_parent_app()
     app.client.send(app.client.current_conversation, self.value)
     conv = app.client.conversations[app.client.current_conversation]
     chat_view = app.form.chat
@@ -127,13 +127,13 @@ class SelectList(npyscreen.BoxTitle):
   """A list for selecting chat conversations
   """
 
-  def __init__(self, *args, **kwargs) -> None: # type: ignore
-    super().__init__(*args, **kwargs) # type: ignore
+  def __init__(self, *args, **kwargs) -> None:
+    super().__init__(*args, **kwargs)
     self.callbacks = []
 
   def when_check_value_changed(self) -> Boolean:
-    selected_item:str = self.values[self.cursor_line] # type: ignore
-    for callback in self.callbacks: # type: ignore
+    selected_item:str = self.values[self.cursor_line]
+    for callback in self.callbacks:
       callback(selected_item)
     return True
 
@@ -148,8 +148,7 @@ class MainForm(npyscreen.FormBaseNew):
 
   def create(self) -> None:
     app:App = self.find_parent_app()
-    y: int; x: int
-    y, x = self.useable_space() # type: ignore
+    y, x = tuple[int, int](self.useable_space())
     # create chat list
     self.chat_list:SelectList = self.add(
       SelectList,
@@ -160,7 +159,7 @@ class MainForm(npyscreen.FormBaseNew):
       relx=2,
       max_width=25,
       max_height=y-4,
-    ) # type: ignore
+    )
     self.chat_list.callbacks.append(self.chat_item_selected)
     #                           self.chat_list.add_handlers({
     #                             curses.ascii.NL: lambda k: self.chat_list_enter(k),
@@ -175,7 +174,7 @@ class MainForm(npyscreen.FormBaseNew):
     	max_width=x-30,
     	max_height=y-4,
     	values=[],
-    ) # type: ignore
+    )
     #                            self.chat.add_handlers({
     #                              '^K': lambda k: self.chat_copy(k),
     #                              curses.ascii.NL: lambda k: self.chat_list_enter(k),
@@ -187,7 +186,7 @@ class MainForm(npyscreen.FormBaseNew):
       relx=3,
       rely=y-3,
       use_two_lines=False,
-    ) # type: ignore
+    )
     self.input.add_handlers({
       curses.ascii.NL: self.input_enter,
     })
@@ -200,21 +199,53 @@ class MainForm(npyscreen.FormBaseNew):
       "^Q": self.quit_app,
     })
 
-  def chat_item_selected(self, item):
+  def chat_item_selected(self, item:str) -> bool:
+    """Handle the chat item selected event
+
+    Args:
+        item (str): The selected chat item
+
+    Returns:
+        bool: Always True
+    """
     self.chat.values.append("You selected " + item)
     self.chat.display()
     return True
 
-  def quit_app(self, key):
+  def quit_app(self, _:str) -> bool:
+    """Quit the application
+
+    Args:
+        key (str): The key that was pressed
+
+    Returns:
+        bool: Always True
+    """
     self.parentApp.switchForm(None)
     return True
 
-  def chat_copy(self, key):
+  def chat_copy(self, _:str) -> bool:
+    """Handle the chat copy event
+
+    Args:
+        key (str): The key that was pressed
+
+    Returns:
+        bool: Always True
+    """
     self.chat.values.append("You pressed ^K")
     self.chat.display()
     return True
 
-  def input_enter(self, key):
+  def input_enter(self, _:str) -> bool:
+    """Handle the input enter event
+
+    Args:
+        key (str): The key that was pressed
+
+    Returns:
+        bool: Always True
+    """
     self.input.invoke()
     return True
 
@@ -231,10 +262,15 @@ class App(npyscreen.NPSAppManaged):
 
   def onStart(self) -> None:
     #npyscreen.setTheme(npyscreen.Themes.ColorfulTheme)
-    self.form = self.addForm("MAIN", MainForm, name="Open AI Chat") # type: ignore
+    self.form = self.addForm("MAIN", MainForm, name="Open AI Chat")
 
 
-def main(args):
+def main(_:list[str]) -> None:
+  """The main function
+
+  Args:
+      args (list[str]): The command line arguments
+  """
   client = Client()
   app = App(client)
   app.run()
