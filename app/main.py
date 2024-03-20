@@ -4,9 +4,18 @@
 """
 
 import curses
-from xmlrpc.client import Boolean
+from typing import Callable
 import npyscreen
 from openai import OpenAI
+
+
+class ConversationParent(OpenAI):
+  """A parent class for conversations
+  """
+  def max_yx(self) -> tuple[int, int]:
+    """Get the maximum y, x value for the chat view
+    """
+    return 20, 80
 
 
 class Conversation:
@@ -14,12 +23,12 @@ class Conversation:
   """
   name:str
   messages:list[dict[str,str]]
-  max_x:int
+  client:ConversationParent
 
-  def __init__(self, name:str) -> None:
+  def __init__(self, name:str, client:ConversationParent) -> None:
     self.name:str = name
     self.messages:list[dict[str,str]] = []
-    self.max_x = -1
+    self.client = client
 
   def add(self, message:dict[str,str]) -> None:
     """Add a message to the conversation
@@ -29,7 +38,7 @@ class Conversation:
     """
     self.messages.append(message)
 
-  def values(self) -> list[str]:
+  def values(self, scroll_offset:int) -> list[str]:
     """Return the messages in a format suitable for display
 
     Returns:
@@ -39,37 +48,67 @@ class Conversation:
       "user": " 💬 ❭❭ ",
       "system": "    🤖 ❬❬ "
     }
-    values:list[str] = []
+    values:list[str] = ['']
+    max_y, max_x = self.client.max_yx()
     for message in self.messages:
       role = message["role"]
       content = message["content"]
-      lines = content.split("\n")
       first = True
+      prefix = prefixes[role]
+      mx = max_x - len(prefix) - 5
+      lines = []
+      for content_line in content.split("\n"):
+        words = content_line.split(" ")
+        line = ""
+        for word in words:
+          if len(line) + len(word) + 1 < mx:
+            line += word + " "
+          else:
+            lines.append(line)
+            line = word + " "
+        if len(line) > 0:
+          lines.append(line)
       for line in lines:
-        prefix = prefixes[role]
         if first:
           values.append(prefix + line)
           first = False
         else:
-          values.append(" " + (" " * len(prefix)) + line)
+          values.append(" " * len(prefix + " ") + line)
       if role == "user":
-        values.append("――――――")
+        values.append("\n――――――")
       else:
-        values.append("\n")
-    return values
+        hr = "―" * (max_x - 3)
+        values.append("\n" + hr)
+    values.append('')
+    my = max_y - 4
+    if len(values) < my:
+      return values
+    else:
+      start = len(values) - my - scroll_offset
+      if start < 0:
+        start = 0
+      if start + my > len(values):
+        start = len(values) - my
+      end = start + my
+      return values[start:end]
 
 
-class Client(OpenAI):
+class Client(ConversationParent):
   """A client for the OpenAI ChatGPT API
   """
+  model:str
+  conversations:dict[str, Conversation]
+  current_conversation:str
+  max_yx:Callable[[], int]
 
   def __init__(self, *args, **kwargs) -> None:
     super().__init__(*args, **kwargs)
     self.model = "gpt-3.5-turbo-0125"
     self.conversations:dict[str, Conversation] = {}
     self.current_conversation:str = "New Chat"
-    self.conversations[self.current_conversation] = Conversation(self.current_conversation)
-    self.conversations["chat2"] = Conversation("chat2")
+    self.conversations[self.current_conversation] = Conversation(self.current_conversation, self)
+    self.conversations["chat2"] = Conversation("chat2", self)
+    self.max_yx:Callable[[], int] = lambda: 20, 80
 
   def get_conversation(self) -> list[str]:
     """Get a list of conversation names
@@ -90,7 +129,7 @@ class Client(OpenAI):
     if len(prompt) == 0:
       return
     if conv_key not in self.conversations:
-      self.conversations[conv_key] = Conversation(conv_key)
+      self.conversations[conv_key] = Conversation(conv_key, self)
     conv = self.conversations[conv_key]
     messages = conv.messages
     messages.append({"role":"user", "content":prompt})
@@ -101,41 +140,110 @@ class Client(OpenAI):
     conv.messages.append({"role":"system", "content":completion.choices[0].message.content})
 
 
-class ChatView(npyscreen.BoxTitle):
-  """A view for displaying chat messages
-  """
-  _contained_widget = npyscreen.Pager
-
-
-class InputField(npyscreen.TitleText):
-  """A field for entering chat messages
-  """
-  def invoke(self) -> None:
-    """Send the message to the chat model
-    """
-    app:App = self.find_parent_app()
-    app.client.send(app.client.current_conversation, self.value)
-    conv = app.client.conversations[app.client.current_conversation]
-    chat_view = app.form.chat
-    chat_view.values = conv.values()
-    chat_view.display()
-    self.value = ""
-    self.display()
-
-
-class SelectList(npyscreen.BoxTitle):
-  """A list for selecting chat conversations
+class MultiSelectHandled(npyscreen.MultiSelect):
+  """A multi select widget with a custom handler
   """
 
   def __init__(self, *args, **kwargs) -> None:
     super().__init__(*args, **kwargs)
     self.callbacks = []
+    self.scroll_up_callback = []
+    self.scroll_down_callback = []
+    self.selected_indexes = []
 
-  def when_check_value_changed(self) -> Boolean:
-    selected_item:str = self.values[self.cursor_line]
-    for callback in self.callbacks:
-      callback(selected_item)
+  def when_check_value_changed(self) -> bool:
+    """Handle the check value changed event
+
+    Returns:
+        bool: Always True
+    """
+    if self.cursor_line < 1:
+      self.cursor_line = 1
+      for callback in self.scroll_up_callback:
+        callback()
+    elif self.cursor_line > len(self.values) - 2:
+      self.cursor_line = len(self.values) - 2
+      for callback in self.scroll_down_callback:
+        callback()
+    if self.value != self.selected_indexes:
+      self.selected_indexes = self.value
+      selected_itms = [self.values[i] for i in self.value]
+      for callback in self.callbacks:
+        callback(selected_itms)
     return True
+
+
+class ChatView(npyscreen.BoxTitle):
+  """A view for displaying chat messages
+  """
+  _contained_widget = MultiSelectHandled
+
+  def __init__(self, *args, **kwargs) -> None:
+    super().__init__(*args, **kwargs)
+    self.callbacks = self.entry_widget.callbacks
+    self.scroll_up_callback = self.entry_widget.scroll_up_callback
+    self.scroll_down_callback = self.entry_widget.scroll_down_callback
+
+
+class InputField(npyscreen.TitleText):
+  """A field for entering chat messages
+  """
+  scroll_offset:int = 0
+
+  def invoke(self) -> None:
+    """Send the message to the chat model
+    """
+    self.scroll_offset = 0
+    app:App = self.find_parent_app()
+    prompt = self.value
+    self.value = ""
+    app.form.chat.values.append("⏳ GENERATING RESPONSE ...")
+    app.form.chat.display()
+    self.display()
+    app.client.send(app.client.current_conversation, prompt)
+    conv = app.client.conversations[app.client.current_conversation]
+    chat_view = app.form.chat
+    chat_view.values = conv.values(self.scroll_offset)
+    chat_view.entry_widget.value = []
+    chat_view.entry_widget.cursor_line = len(chat_view.values) - 1 - 1
+    chat_view.display()
+    self.value = ""
+    self.display()
+
+
+class SelectOneHandled(npyscreen.SelectOne):
+  """A select one widget with a custom handler
+  """
+
+  def __init__(self, *args, **kwargs) -> None:
+    super().__init__(*args, **kwargs)
+    self.callbacks = []
+    self.selected_itm = None
+
+  def when_check_value_changed(self) -> bool:
+    """Handle the check value changed event
+
+    Returns:
+        bool: Always True
+    """
+    if len(self.value) > 0:
+      index = self.value[0]
+      selected_itm = self.values[index]
+      if selected_itm != self.selected_itm:
+        self.selected_itm = selected_itm
+        for callback in self.callbacks:
+          callback(selected_itm)
+    return True
+
+
+class SelectList(npyscreen.BoxTitle):
+  """A list for selecting chat conversations
+  """
+  _contained_widget = SelectOneHandled
+
+  def __init__(self, *args, **keywords) -> None:
+    super().__init__(*args, **keywords)
+    self.callbacks = self.entry_widget.callbacks
 
 
 class MainForm(npyscreen.FormBaseNew):
@@ -161,10 +269,6 @@ class MainForm(npyscreen.FormBaseNew):
       max_height=y-4,
     )
     self.chat_list.callbacks.append(self.chat_item_selected)
-    #                           self.chat_list.add_handlers({
-    #                             curses.ascii.NL: lambda k: self.chat_list_enter(k),
-    #                             '^T': lambda k: self.chat_list_enter(k),
-    #                           })
     # create chat view
     self.chat:ChatView = self.add(
     	ChatView,
@@ -175,10 +279,8 @@ class MainForm(npyscreen.FormBaseNew):
     	max_height=y-4,
     	values=[],
     )
-    #                            self.chat.add_handlers({
-    #                              '^K': lambda k: self.chat_copy(k),
-    #                              curses.ascii.NL: lambda k: self.chat_list_enter(k),
-    #                            })
+    self.chat.scroll_up_callback.append(self.chat_scroll_up)
+    self.chat.scroll_down_callback.append(self.chat_scroll_down)
     # create input
     self.input:InputField = self.add(
       InputField,
@@ -190,14 +292,32 @@ class MainForm(npyscreen.FormBaseNew):
     self.input.add_handlers({
       curses.ascii.NL: self.input_enter,
     })
-    self.editw = 2
+    self.editw = 0
     self.add_handlers({
-      #curses.ascii.UP: lambda k: self.chat.values.append("You pressed UP"),
-      #curses.ascii.DOWN: lambda k: self.chat.values.append("You pressed DOWN"),
       '^T': self.chat_copy,
       curses.ascii.ESC: self.quit_app,
       "^Q": self.quit_app,
     })
+
+  def chat_scroll_up(self) -> None:
+    """Scroll the chat view up
+    """
+    self.input.scroll_offset += 1
+    app:App = self.find_parent_app()
+    conv = app.client.conversations[app.client.current_conversation]
+    self.chat.values = conv.values(self.input.scroll_offset)
+    self.chat.entry_widget.value = []
+    self.chat.display()
+
+  def chat_scroll_down(self) -> None:
+    """Scroll the chat view down
+    """
+    self.input.scroll_offset -= 1
+    app:App = self.find_parent_app()
+    conv = app.client.conversations[app.client.current_conversation]
+    self.chat.values = conv.values(self.input.scroll_offset)
+    self.chat.entry_widget.value = []
+    self.chat.display()
 
   def chat_item_selected(self, item:str) -> bool:
     """Handle the chat item selected event
@@ -259,13 +379,26 @@ class App(npyscreen.NPSAppManaged):
   def __init__(self, client:Client) -> None:
     super().__init__()
     self.client = client
+    self.form = None
 
   def onStart(self) -> None:
     #npyscreen.setTheme(npyscreen.Themes.ColorfulTheme)
     self.form = self.addForm("MAIN", MainForm, name="Open AI Chat")
 
+  def get_chat_max_yx(self) -> tuple[int, int]:
+    """Get the maximum x value for the chat view
 
-def main(_:list[str]) -> None:
+    Returns:
+        int: The maximum x value
+    """
+    if self.form is None:
+      return 20, 80
+    x = self.form.chat.width
+    y = self.form.chat.height
+    return y, x
+
+
+def main(*_:list[str]) -> None:
   """The main function
 
   Args:
@@ -273,12 +406,13 @@ def main(_:list[str]) -> None:
   """
   client = Client()
   app = App(client)
+  client.max_yx = app.get_chat_max_yx
   app.run()
 
 
 if __name__=="__main__":
   import sys
   if len(sys.argv) > 1:
-    main(sys.argv[1:])
+    main(*(sys.argv[1:]))
   else:
-    main([])
+    main(*[])
