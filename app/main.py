@@ -369,11 +369,13 @@ class MainForm(npyscreen.FormBaseNew):
   editw:int
   delete_chat_mode:bool
   rename_chat_mode:bool
+  created:bool
 
   def create(self) -> None:
     side_col_width = 30
     self.delete_chat_mode = False
     self.rename_chat_mode = False
+    self.created = False
     app:App = self.find_parent_app()
     y, x = tuple[int, int](self.useable_space())
     # create input
@@ -384,9 +386,6 @@ class MainForm(npyscreen.FormBaseNew):
       rely=y-3,
       use_two_lines=False,
     )
-    self.input.add_handlers({
-      curses.ascii.NL: self.input_enter,
-    })
     # create chat view
     self.chat:ChatView = self.add(
     	ChatView,
@@ -396,9 +395,6 @@ class MainForm(npyscreen.FormBaseNew):
     	max_width=x-side_col_width-5,
     	max_height=y-4,
     )
-    self.chat.scroll_up_callback.append(self.chat_scroll_up)
-    self.chat.scroll_down_callback.append(self.chat_scroll_down)
-    app.client.max_yx = lambda: tuple([y-4, x-side_col_width-5])
     # create chat list
     self.chat_list:SelectList = self.add(
       SelectList,
@@ -410,10 +406,6 @@ class MainForm(npyscreen.FormBaseNew):
       max_width=side_col_width,
       max_height=y-4-3,
     )
-    if app.client.current_conversation is not None:
-      self.chat_list.entry_widget.value = [list(app.client.conversations.keys()).index(app.client.current_conversation)]
-      self.chat.values = app.client.conversations[app.client.current_conversation].values(0)
-    self.chat_list.callbacks.append(self.chat_item_selected)
     # create new chat button
     self.new_chat_btn = self.add(
       npyscreen.ButtonPress,
@@ -452,6 +444,17 @@ class MainForm(npyscreen.FormBaseNew):
       when_pressed_function=self.quit_app,
       color="DANGER",
     )
+    # add key handlers
+    self.chat.scroll_up_callback.append(self.chat_scroll_up)
+    self.chat.scroll_down_callback.append(self.chat_scroll_down)
+    app.client.max_yx = lambda: tuple([y-4, x-side_col_width-5])
+    self.input.add_handlers({
+      curses.ascii.NL: self.input_enter,
+    })
+    if app.client.current_conversation is not None:
+      self.chat_list.entry_widget.value = [list(app.client.conversations.keys()).index(app.client.current_conversation)]
+      self.chat.values = app.client.conversations[app.client.current_conversation].values(0)
+    self.chat_list.callbacks.append(self.chat_item_selected)
     # check if conversation list is empty
     if len(app.client.conversations) <= 0:
       self.new_chat()
@@ -466,6 +469,7 @@ class MainForm(npyscreen.FormBaseNew):
     })
     # focus input widget
     self.editw = 0
+    self.created = True
 
   def new_chat(self, _:str=None) -> bool:
     """Create a new chat
@@ -480,7 +484,8 @@ class MainForm(npyscreen.FormBaseNew):
     self.chat.clear()
     self.chat.display()
     self.editw = 0
-    self.input.edit()
+    if self.created:
+      self.input.edit()
 
   def rename_chat(self, _:str=None) -> bool:
     """Rename the chat
@@ -489,7 +494,8 @@ class MainForm(npyscreen.FormBaseNew):
     self.input.label_widget.value = "Rename Chat:   "
     self.input.value = self.find_parent_app().client.current_conversation
     self.input.display()
-    self.input.edit()
+    if self.created:
+      self.input.edit()
 
   def delete_chat(self, _:str=None) -> bool:
     """Delete the chat
@@ -499,7 +505,8 @@ class MainForm(npyscreen.FormBaseNew):
     self.input.value = "type in DELETE to confirm"
     self.input.display()
     self.editw = 0
-    self.input.edit()
+    if self.created:
+      self.input.edit()
 
   def chat_scroll_up(self) -> None:
     """Scroll the chat view up
