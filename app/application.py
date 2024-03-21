@@ -5,6 +5,7 @@
 import client as oaic
 import base
 import mainform
+from labels import Lang
 
 
 class App(base.AppBase):
@@ -22,7 +23,7 @@ class App(base.AppBase):
     """Start the application
     """
     #npyscreen.setTheme(npyscreen.Themes.ColorfulTheme)
-    self.form = self.addForm("MAIN", mainform.MainForm, name="Open AI Chat")
+    self.form = self.addForm("MAIN", mainform.MainForm, name=Lang.cur.app_title)
 
   def get_chat_max_yx(self) -> tuple[int, int]:
     """Get the maximum x value for the chat view

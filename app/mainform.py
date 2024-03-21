@@ -7,6 +7,7 @@ import npyscreen
 import controls
 import conversation
 import base
+from labels import Lang
 
 
 class MainForm(base.MainFormBase):
@@ -36,7 +37,7 @@ class MainForm(base.MainFormBase):
     # create input
     self.input:controls.InputField = self.add(
       controls.InputField,
-      name="Prompt:        ",
+      name=Lang.cur.main_form_prompt_title,
       relx=side_col_width + 4,
       rely=y-3,
       use_two_lines=False,
@@ -44,7 +45,7 @@ class MainForm(base.MainFormBase):
     # create chat view
     self.chat:controls.ChatView = self.add(
       controls.ChatView,
-      name="Conversation",
+      name=Lang.cur.main_form_conversation_title,
       relx=side_col_width + 3,
       rely=1,
       max_width=x-side_col_width-5,
@@ -53,7 +54,7 @@ class MainForm(base.MainFormBase):
     # create chat list
     self.chat_list:controls.SelectList = self.add(
       controls.SelectList,
-      name="Chats",
+      name=Lang.cur.main_form_chat_list_title,
       custom_highlighting=True,
       values=app.client.get_conversation(),
       rely=1,
@@ -64,7 +65,7 @@ class MainForm(base.MainFormBase):
     # create new chat button
     self.new_chat_btn = self.add(
       npyscreen.ButtonPress,
-      name="[   + New Chat   (^N) ]",
+      name=Lang.cur.main_form_newchat_button,
       relx=1,
       rely=y-3-3,
       max_width=side_col_width,
@@ -74,7 +75,7 @@ class MainForm(base.MainFormBase):
     # create rename chat button
     self.rename_chat_btn = self.add(
       npyscreen.ButtonPress,
-      name="[   Rename Chat  (^R) ]",
+      name=Lang.cur.main_form_renamechat_button,
       relx=1,
       rely=y-3-2,
       max_width=side_col_width,
@@ -83,7 +84,7 @@ class MainForm(base.MainFormBase):
     # create delete chat button
     self.delete_chat_btn = self.add(
       npyscreen.ButtonPress,
-      name="[   Delete Chat  (^D) ]",
+      name=Lang.cur.main_form_deletechat_button,
       relx=1,
       rely=y-3-1,
       max_width=side_col_width,
@@ -92,7 +93,7 @@ class MainForm(base.MainFormBase):
     # create quit button
     self.quit_btn = self.add(
       npyscreen.ButtonPress,
-      name="[      Quit      (^Q) ]",
+      name=Lang.cur.main_form_quit_button,
       relx=1,
       rely=y-3,
       max_width=side_col_width,
@@ -132,7 +133,7 @@ class MainForm(base.MainFormBase):
     app = self.find_parent_app()
     app.client.current_conversation = None
     self.input.value = ""
-    self.input.label_widget.value = "New Chat Name: "
+    self.input.label_widget.value = Lang.cur.main_form_newchat_title
     self.input.display()
     newcon = conversation.Conversation("new", self.find_parent_app().client)
     self.chat.values = newcon.values(0)
@@ -146,7 +147,7 @@ class MainForm(base.MainFormBase):
     """Rename the chat
     """
     self.rename_chat_mode = True
-    self.input.label_widget.value = "Rename Chat:   "
+    self.input.label_widget.value = Lang.cur.main_form_renamechat_title
     self.input.value = self.find_parent_app().client.current_conversation
     self.input.display()
     if self.created:
@@ -156,8 +157,8 @@ class MainForm(base.MainFormBase):
     """Delete the chat
     """
     self.delete_chat_mode = True
-    self.input.label_widget.value = "Delete Chat:   "
-    self.input.value = "type in DELETE to confirm"
+    self.input.label_widget.value = Lang.cur.main_form_deletechat_title
+    self.input.value = Lang.cur.main_form_deletechat_message
     self.input.display()
     self.editw = 0
     if self.created:
@@ -287,7 +288,7 @@ class MainForm(base.MainFormBase):
     else:
       self.input.invoke()
 
-    self.input.label_widget.value = "Prompt:"
+    self.input.label_widget.value = Lang.cur.main_form_prompt_title
     self.input.value = ""
     self.input.display()
 

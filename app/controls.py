@@ -4,6 +4,7 @@
 
 import npyscreen
 import base
+from labels import Lang
 
 
 class MultiSelectHandled(npyscreen.MultiSelect):
@@ -63,22 +64,25 @@ class InputField(npyscreen.TitleText):
     app:base.AppBase = self.find_parent_app()
     prompt = self.value
     self.value = ""
-    app.form.chat.values.append("⏳ GENERATING RESPONSE ...")
-    app.form.chat.clear()
-    app.form.chat.display()
-    self.display()
-    new_conf_key = app.client.send(app.client.current_conversation, prompt)
-    if app.client.current_conversation != new_conf_key:
-      app.client.current_conversation = new_conf_key
-      app.form.chat_list.values = app.client.get_conversation()
-      app.form.chat_list.entry_widget.value = [list(app.client.conversations.keys()).index(app.client.current_conversation)]
-      app.form.chat_list.display()
-    conv = app.client.conversations[app.client.current_conversation]
-    chat_view = app.form.chat
-    chat_view.values = conv.values(self.scroll_offset)
-    chat_view.entry_widget.value = []
-    chat_view.entry_widget.cursor_line = len(chat_view.values) - 1 - 1
-    chat_view.display()
+    if len(prompt) > 0:
+      app.form.chat.values.append(Lang.cur.conversation_generated_response)
+      app.form.chat.clear()
+      app.form.chat.display()
+      self.display()
+      new_conf_key = app.client.send(app.client.current_conversation, prompt)
+      if app.client.current_conversation != new_conf_key:
+        app.client.current_conversation = new_conf_key
+        app.form.chat_list.values = app.client.get_conversation()
+        app.form.chat_list.entry_widget.value = [list(app.client.conversations.keys()).index(app.client.current_conversation)]
+        app.form.chat_list.display()
+      if app.client.current_conversation is not None:
+        if app.client.current_conversation in app.client.conversations:
+          conv = app.client.conversations[app.client.current_conversation]
+          chat_view = app.form.chat
+          chat_view.values = conv.values(self.scroll_offset)
+          chat_view.entry_widget.value = []
+          chat_view.entry_widget.cursor_line = len(chat_view.values) - 1 - 1
+          chat_view.display()
     self.value = ""
     self.display()
 

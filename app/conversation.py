@@ -7,6 +7,7 @@ import json
 from constants import CONVERSATIONS_FOLDER_PATH, FILE_EXTENSION
 import functions
 import base
+from labels import Lang
 
 
 class Conversation:
@@ -70,20 +71,20 @@ class Conversation:
         list[str]: A list of strings to display
     """
     prefixes = {
-      "user": " 💬 ❭❭ ",
-      "system": "    🤖 ❬❬ "
+      "user": Lang.cur.conversation_user_prefix,
+      "system": Lang.cur.conversation_system_prefix
     }
     values:list[str] = ['']
     max_y, max_x = self.client.max_yx()
     if len(self.messages) <= 0:
-      values.append("    NEW CONVERSATION ")
-      values.append("    > waiting for prompt ... ")
+      values.append(Lang.cur.conversation_new_conversation_line1)
+      values.append(Lang.cur.conversation_new_conversation_line2)
     for message in self.messages:
       role = message["role"]
       content = message["content"]
       first = True
       prefix = prefixes[role]
-      mx = max_x - len(prefix) - 5 - 1
+      mx = max_x - len(prefix) - 12
       lines = []
       for content_line in content.split("\n"):
         words = content_line.split(" ")
@@ -101,7 +102,7 @@ class Conversation:
           values.append(prefix + line + " ")
           first = False
         else:
-          values.append(" " * len(prefix + " ") + line + " ")
+          values.append(" " * len(prefix) + line + " ")
       if role == "user":
         values.append("\n―――――― ")
       else:
