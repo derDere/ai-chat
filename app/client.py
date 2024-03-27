@@ -17,7 +17,8 @@ class Client(base.ClientBase):
 
   def __init__(self, *args, **kwargs) -> None:
     super().__init__(*args, **kwargs)
-    self.model = "gpt-3.5-turbo-0125"
+    #self.model = "gpt-3.5-turbo-0125"
+    self.model = "gpt-4-turbo-preview"
     self.conversations:dict[str, conversation.Conversation] = {}
     self.current_conversation:str = None
     #self.conversations[self.current_conversation] = Conversation(self.current_conversation, self)
@@ -61,11 +62,14 @@ class Client(base.ClientBase):
       conv = self.conversations[conv_key]
     messages = conv.messages
     messages.append({"role": "user", "content": prompt})
-    completion = self.chat.completions.create(
-      model=self.model,
-      messages=messages
-    )
-    conv.messages.append({"role":"system", "content":completion.choices[0].message.content})
+    try:
+      completion = self.chat.completions.create(
+        model=self.model,
+        messages=messages
+      )
+      conv.messages.append({"role":"system", "content":completion.choices[0].message.content})
+    except Exception as e:
+      conv.messages.append({"role":"error", "content":str(e)})
     if conv_key is None:
       # get conv name
       name_completion = self.chat.completions.create(

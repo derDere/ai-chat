@@ -30,7 +30,7 @@ class Conversation:
       self.path = functions.get_home_folder() + CONVERSATIONS_FOLDER_PATH + self.name + FILE_EXTENSION
     else:
       self.path = path
-    json_str = json.dumps(self.messages)
+    json_str = json.dumps(self.messages, indent=2)
     with open(self.path, "w+", encoding='utf-8') as f:
       f.write(json_str)
 
@@ -72,7 +72,8 @@ class Conversation:
     """
     prefixes = {
       "user": Lang.cur.conversation_user_prefix,
-      "system": Lang.cur.conversation_system_prefix
+      "system": Lang.cur.conversation_system_prefix,
+      "error": Lang.cur.conversation_error_prefix
     }
     values:list[str] = ['']
     max_y, max_x = self.client.max_yx()

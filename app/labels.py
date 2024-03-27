@@ -12,21 +12,25 @@ ZERO_WIDTH_SPACE = "" #\u200B" # Fixes string length with emojis
 #ICON_AI = "🤖" + ZERO_WIDTH_SPACE
 #ICON_USER = "💬" + ZERO_WIDTH_SPACE
 #ICON_WAIT = "⏳" + ZERO_WIDTH_SPACE
+#ICON_ERR = "❌" + ZERO_WIDTH_SPACE
 
 # Ascii ICONS
 #ICON_AI = "[°_°]"
 #ICON_USER = "(^.^)"
 #ICON_WAIT = "}{"
+#ICON_ERR = "!!!"
 
 # NerdFont ICONS
 ICON_AI = "ﮧ"
 ICON_USER = ""
 ICON_WAIT = "ﮫ"
+ICON_ERR = ""
 
 # Text ICONS
 #ICON_AI = "AI"
 #ICON_USER = "ME"
 #ICON_WAIT = "..."
+#ICON_ERR = "ERR"
 
 
 class LabelsBase:
@@ -51,6 +55,7 @@ class LabelsBase:
   conversation_new_conversation_line2 = "conversation_new_conversation_line2"
   conversation_user_prefix = "conversation_user_prefix"
   conversation_system_prefix = "conversation_system_prefix"
+  conversation_error_prefix = "conversation_error_prefix"
   conversation_generated_response = "conversation_generated_response"
 
 
@@ -78,6 +83,7 @@ class LangEN(LabelsBase):
     self.conversation_new_conversation_line2 = "    > waiting for prompt ... "
     self.conversation_user_prefix = f" {ICON_USER} ❭❭ "
     self.conversation_system_prefix = f"    {ICON_AI} ❬❬ "
+    self.conversation_error_prefix = f"    {ICON_ERR} !!! "
     self.conversation_generated_response = f"{ICON_WAIT} GENERATING RESPONSE ..."
 
 
@@ -105,6 +111,7 @@ class LangDE(LabelsBase):
     self.conversation_new_conversation_line2 = "    > warte auf Eingabe ... "
     self.conversation_user_prefix = f" {ICON_USER} ❭❭ "
     self.conversation_system_prefix = f"    {ICON_AI} ❬❬ "
+    self.conversation_error_prefix = f"    {ICON_ERR} !!! "
     self.conversation_generated_response = f"{ICON_WAIT} ANTWORT WIRD GENERIERT ..."
 
 
@@ -132,6 +139,7 @@ class LangFR(LabelsBase):
     self.conversation_new_conversation_line2 = "    > en attente de l'invite ... "
     self.conversation_user_prefix = f" {ICON_USER} ❭❭ "
     self.conversation_system_prefix = f"    {ICON_AI} ❬❬ "
+    self.conversation_error_prefix = f"    {ICON_ERR} !!! "
     self.conversation_generated_response = f"{ICON_WAIT} GÉNÉRATION DE LA RÉPONSE ..."
 
 
