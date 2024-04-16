@@ -29,7 +29,7 @@ class InputOpenAIAPIKey(npyscreen.ActionForm):
     """ Event handler for the OK button.
     """
     key = '' + self.key_input.value
-    if len(key) < 5:
+    if len(key) > 5:
       self.parentApp.setNextForm(None)
       self.parentApp.key_entered = (True, key)
       self.parentApp.switchFormNow()
