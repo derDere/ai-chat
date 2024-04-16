@@ -17,6 +17,7 @@ class Client(base.ClientBase):
 
   def __init__(self, *args, **kwargs) -> None:
     super().__init__(*args, **kwargs)
+    # https://platform.openai.com/docs/models/gpt-4-and-gpt-4-turbo
     #self.model = "gpt-3.5-turbo-0125"
     self.model = "gpt-4-turbo-preview"
     self.conversations:dict[str, conversation.Conversation] = {}
